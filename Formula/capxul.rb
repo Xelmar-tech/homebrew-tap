@@ -1,9 +1,9 @@
 class Capxul < Formula
   desc "Capxul command-line diagnostics and configuration"
   homepage "https://github.com/Xelmar-tech/homebrew-tap"
-  url "https://registry.npmjs.org/@capxul/cli/-/cli-4.20.0-beta.22.tgz"
-  version "4.20.0-beta.22"
-  sha256 "e6649f1dd2ca27bed2565562109ac0c50da83a347cb6b7fd9d97451d139487bd"
+  url "https://registry.npmjs.org/@capxul/cli/-/cli-4.20.0-beta.23.tgz"
+  version "4.20.0-beta.23"
+  sha256 "cc12f2628929fefa711a77e2442c42f8c7882eb66b59701a15ffa8acd7cdcafc"
   # The upstream npm package retains its UNLICENSED metadata.
   license :cannot_represent
 
