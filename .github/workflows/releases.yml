@@ -1,0 +1,57 @@
+name: Verify Homebrew release and notify Mattermost
+
+on:
+  push:
+    branches: [main]
+    paths: [Formula/capxul.rb]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: homebrew-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: macos-latest
+    timeout-minutes: 15
+    env:
+      HOMEBREW_NO_AUTO_UPDATE: "1"
+    steps:
+      - name: Checkout formula
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+
+      - name: Install and test this formula
+        run: |
+          brew tap --custom-remote xelmar-tech/tap "$GITHUB_WORKSPACE"
+          brew install xelmar-tech/tap/capxul
+          brew test xelmar-tech/tap/capxul
+
+      - name: Notify Mattermost of Homebrew availability
+        continue-on-error: true
+        env:
+          MATTERMOST_RELEASE_WEBHOOK: ${{ secrets.MATTERMOST_RELEASE_WEBHOOK }}
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import { readFileSync } from 'node:fs';
+          const formula = readFileSync('Formula/capxul.rb', 'utf8');
+          const version = formula.match(/^\s*version "([^"]+)"$/m)?.[1];
+          assert.match(version, /^\d+\.\d+\.\d+(?:-[a-zA-Z0-9.-]+)?$/);
+          assert.ok(process.env.MATTERMOST_RELEASE_WEBHOOK?.startsWith('https://chat.capxul.com/hooks/'));
+          const label = version.includes('-') ? ' (prerelease)' : '';
+          const run = `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`;
+          const text = `Homebrew: Capxul ${version} is available${label}.\n\nInstall: \`brew install xelmar-tech/tap/capxul\`\nUpdate: \`brew upgrade xelmar-tech/tap/capxul\`\n\n[Verified formula](${run})`;
+          const response = await fetch(process.env.MATTERMOST_RELEASE_WEBHOOK, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text }),
+            signal: AbortSignal.timeout(15000),
+          });
+          assert.ok(response.ok, `Mattermost returned HTTP ${response.status}`);
+          console.log(`Notified Mattermost of Capxul ${version} on Homebrew.`);
+          NODE
